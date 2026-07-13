@@ -116,3 +116,27 @@ export interface CommentPage {
     next_cursor: string | null;
     has_more: boolean;
 }
+
+export interface LikeUserResponse {
+    id: UUID;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+}
+
+export interface LikeActionResponse {
+    liked: boolean;
+    count: number;
+}
+
+export interface LikeListResponse {
+    count: number;
+    users: LikeUserResponse[];
+}
+
+export interface UploadedImageResponse {
+    key: string;
+    url: string;
+    content_type: string;
+    size: number;
+}

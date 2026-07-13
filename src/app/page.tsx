@@ -1,8 +1,9 @@
-export default function Home() {
-    return (
-        <div>
-            Welcome to The Social Feed
-            <div>Connect With Your Mates</div>
-        </div>
-    );
+import {redirect} from "next/navigation";
+
+import {getCurrentUser} from "@/lib/session";
+
+export default async function HomePage() {
+    const user = await getCurrentUser();
+
+    redirect(user ? "/feed" : "/login");
 }

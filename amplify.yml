@@ -10,6 +10,7 @@ frontend:
 
     build:
       commands:
+        - printf "BACKEND_API_BASE_URL=%s\n" "$BACKEND_API_BASE_URL" >> .env.production
         - pnpm run build
 
   artifacts:

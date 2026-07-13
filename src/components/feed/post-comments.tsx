@@ -1,7 +1,7 @@
 "use client";
 
 import type {FormEvent} from "react";
-import {useEffect, useState, useTransition} from "react";
+import {useCallback, useEffect, useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
 
 import type {ApiErrorResponse, CommentCreate, CommentPage, CommentResponse, LikeActionResponse,} from "@/lib/types";
@@ -116,14 +116,14 @@ export default function PostComments({
         endpoint: null,
     });
 
-    async function handleUnauthorized() {
+    const handleUnauthorized = useCallback(async () => {
         startTransition(() => {
             router.replace("/login");
             router.refresh();
         });
-    }
+    }, [router, startTransition]);
 
-    async function loadComments(cursor?: string, append = false) {
+    const loadComments = useCallback(async (cursor?: string, append = false) => {
         const searchParams = new URLSearchParams({limit: "10"});
         if (cursor) searchParams.set("cursor", cursor);
 
@@ -143,7 +143,7 @@ export default function PostComments({
         setComments((current) => (append ? [...current, ...data.items] : data.items));
         setNextCursor(data.next_cursor);
         setHasMore(data.has_more);
-    }
+    }, [handleUnauthorized, postId]);
 
     useEffect(() => {
         async function run() {
@@ -159,7 +159,7 @@ export default function PostComments({
         }
 
         void run();
-    }, [postId]);
+    }, [loadComments]);
 
     async function handleCreateComment(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();

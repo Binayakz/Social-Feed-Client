@@ -1,8 +1,8 @@
 "use client";
 
-import type {ChangeEvent, FormEvent} from "react";
-import {useEffect, useState, useTransition} from "react";
+import {ChangeEvent, FormEvent, useCallback, useEffect, useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
+import Image from "next/image";
 
 import LogoutButton from "@/components/feed/logout-button";
 import PostComments from "@/components/feed/post-comments";
@@ -102,14 +102,14 @@ export default function FeedClient({currentUser}: FeedClientProps) {
     const initials = getInitials(currentUser.full_name);
     const isBusy = isCreating || isRedirecting || isUploadingImage;
 
-    async function handleUnauthorized() {
+    const handleUnauthorized = useCallback(async () => {
         startTransition(() => {
             router.replace("/login");
             router.refresh();
         });
-    }
+    }, [router, startTransition]);
 
-    async function loadPosts(cursor?: string, append = false) {
+    const loadPosts = useCallback(async (cursor?: string, append = false) => {
         const searchParams = new URLSearchParams({limit: "10"});
         if (cursor) searchParams.set("cursor", cursor);
 
@@ -129,7 +129,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
         setPosts((current) => (append ? [...current, ...data.items] : data.items));
         setNextCursor(data.next_cursor);
         setHasMore(data.has_more);
-    }
+    }, [handleUnauthorized]);
 
     useEffect(() => {
         async function run() {
@@ -146,7 +146,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
         }
 
         void run();
-    }, []);
+    }, [loadPosts]);
 
     async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
@@ -299,7 +299,8 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                     <div className="container _custom_container">
                         <div className="_logo_wrap">
               <span className="navbar-brand">
-                <img src="/assets/images/logo.svg" alt="Buddy Script" className="_nav_logo"/>
+                {/*<Image src="/assets/images/logo.svg" alt="Buddy Script" className="_nav_logo" width={100} height={100}/>*/}
+                <img src="/assets/images/logo.svg" alt="Buddy Script" className="_nav_logo" width={100} height={100}/>
               </span>
                         </div>
 
@@ -480,7 +481,8 @@ export default function FeedClient({currentUser}: FeedClientProps) {
 
                                                     {post.image_url ? (
                                                         <div className="_feed_inner_timeline_image _mar_t24">
-                                                            <img src={post.image_url} alt="Post visual" className="_time_img"/>
+                                                            {/*<Image src={post.image_url} alt="Post visual" className="_time_img" width={100} height={100}/>*/}
+                                                            <img src={post.image_url} alt="Post visual" className="_time_img" width={100} height={100}/>
                                                         </div>
                                                     ) : null}
                                                 </div>

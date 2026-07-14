@@ -4,6 +4,7 @@ import {useEffect, useState, useTransition} from "react";
 import {useRouter} from "next/navigation";
 
 import type {ApiErrorResponse, LikeListResponse, LikeUserResponse,} from "@/lib/types";
+import {Avatar} from "@/components/feed/Avatar";
 
 type LikerListModalProps = {
     isOpen: boolean;
@@ -125,24 +126,35 @@ export default function LikerListModal({
 
                 {!isLoading && !error && users.length > 0 ? (
                     <div className="mt-3 max-h-[360px] overflow-y-auto">
-                        <div className="space-y-3">
+                        <div className="grid gap-2">
                             {users.map((user) => (
                                 <div
                                     key={user.id}
-                                    className="my-1 d-flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
+                                    className="d-flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3"
                                 >
-                                    <div
-                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#377DFF] text-xs font-semibold text-white">
-                                        {getInitials(user.full_name)}
-                                    </div>
+                                    {
+                                        user.profile_image_url ?
+                                            <Avatar
+                                                name={user.full_name}
+                                                imageUrl={user.profile_image_url}
+                                                sizeClassName={"h-8 w-8"}
+                                                textClassName={"text-sm"}
+                                            />
+                                            :
+                                            <div
+                                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#377DFF] text-xs font-semibold text-white">
+                                                {getInitials(user.full_name)}
+                                            </div>
+                                    }
+
 
                                     <div>
                                         <p className="mb-0 text-sm font-semibold text-slate-900">
                                             {user.full_name}
                                         </p>
-                                        <p className="mb-0 text-xs text-slate-500">
+                                        {/*<p className="mb-0 text-xs text-slate-500">
                                             {user.first_name} {user.last_name}
-                                        </p>
+                                        </p>*/}
                                     </div>
                                 </div>
                             ))}

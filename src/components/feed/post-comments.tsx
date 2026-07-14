@@ -6,6 +6,7 @@ import {useRouter} from "next/navigation";
 
 import type {ApiErrorResponse, CommentCreate, CommentPage, CommentResponse, LikeActionResponse, UserResponse,} from "@/lib/types";
 import LikerListModal from "@/components/feed/liker-list-modal";
+import {Avatar} from "@/components/feed/Avatar";
 
 type PostCommentsProps = {
     postId: string;
@@ -297,7 +298,12 @@ export default function PostComments({
                 <div className="_feed_inner_comment_box_form">
                     <div className="_feed_inner_comment_box_content">
                         <div className="_feed_inner_comment_box_content_image">
-                            <ComposerAvatar name={currentUser.full_name}/>
+                            <Avatar
+                                name={currentUser.full_name}
+                                imageUrl={currentUser.profile_image_url}
+                                sizeClassName={"h-6.5 w-6.5"}
+                                textClassName={"text-xs"}
+                            />
                         </div>
 
                         <div className="_feed_inner_comment_box_content_txt">
@@ -379,7 +385,10 @@ export default function PostComments({
                             <div key={comment.id}>
                                 <div className="_comment_main">
                                     <div className="_comment_image">
-                                        <CommentAvatar name={comment.author.full_name}/>
+                                        <Avatar name={comment.author.full_name}
+                                                imageUrl={comment.author.profile_image_url}
+                                                sizeClassName={"h-10 w-10"}
+                                                textClassName={"text-xs"}/>/
                                     </div>
 
                                     <div className="_comment_area">
@@ -501,6 +510,12 @@ export default function PostComments({
                                                         <div className="_feed_inner_comment_box_content">
                                                             <div className="_feed_inner_comment_box_content_image">
                                                                 <ComposerAvatar name={currentUser.full_name}/>
+                                                                {/*<Avatar
+                                                                    name={currentUser.full_name}
+                                                                    imageUrl={currentUser.profile_image_url}
+                                                                    sizeClassName={"h-10 w-10"}
+                                                                    textClassName={"text-xs"}
+                                                                />*/}
                                                             </div>
 
                                                             <div className="_feed_inner_comment_box_content_txt">
@@ -555,27 +570,6 @@ export default function PostComments({
                                                         Reply
                                                     </button>
                                                 </div>
-
-                                                <div className="mt-2 d-flex justify-content-end gap-2">
-                                                    <button
-                                                        type="button"
-                                                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600"
-                                                        onClick={() => {
-                                                            setReplyingToId(null);
-                                                            setReplyContent("");
-                                                        }}
-                                                    >
-                                                        Cancel
-                                                    </button>
-
-                                                    <button
-                                                        type="submit"
-                                                        disabled={isSubmittingReply || isRedirecting}
-                                                        className="_feed_inner_text_area_btn_link"
-                                                    >
-                                                        <span>{isSubmittingReply ? "Replying..." : "Reply"}</span>
-                                                    </button>
-                                                </div>
                                             </form>
                                         ) : null}
 
@@ -584,7 +578,12 @@ export default function PostComments({
                                                 {comment.replies.map((reply) => (
                                                     <div key={reply.id} className="_comment_main">
                                                         <div className="_comment_image">
-                                                            <CommentAvatar name={reply.author.full_name}/>
+                                                            <Avatar
+                                                                name={reply.author.full_name}
+                                                                imageUrl={reply.author.profile_image_url}
+                                                                sizeClassName={"h-10 w-10"}
+                                                                textClassName={"text-xs"}
+                                                            />
                                                         </div>
 
                                                         <div className="_comment_area">

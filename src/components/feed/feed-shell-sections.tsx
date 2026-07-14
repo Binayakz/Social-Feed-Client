@@ -1,4 +1,6 @@
 import Image from "next/image";
+import type {UserResponse} from "@/lib/types";
+import {Avatar} from "@/components/feed/Avatar";
 
 const stories = [
     {name: "Your Story", image: "/assets/images/card_ppl1.png", own: true},
@@ -82,7 +84,11 @@ const exploreItems = [
     {label: "Save post"},
 ];
 
-export function FeedStoriesRow() {
+type FeedClientProps = {
+    currentUser: UserResponse;
+};
+
+export function FeedStoriesRow({currentUser}: FeedClientProps) {
     return (
         <>
             <div className="_feed_inner_ppl_card _mar_b16">
@@ -92,7 +98,8 @@ export function FeedStoriesRow() {
                             {story.own ? (
                                 <div className="_feed_inner_profile_story _b_radious6">
                                     <div className="_feed_inner_profile_story_image">
-                                        <Image src={story.image} alt={story.name} width={180} height={220} className="_profile_story_img"/>
+                                        <Image src={story.image} alt={story.name} width={180} height={220} loading={"eager"}/>
+
                                         <div className="_feed_inner_story_txt">
                                             <div className="_feed_inner_story_btn">
                                                 <button className="_feed_inner_story_btn_link text-white" type="button">+</button>
@@ -234,7 +241,7 @@ export function FeedLeftSidebar() {
                                     </div>
                                 </div>
 
-                                <hr className="_underline" />
+                                <hr className="_underline"/>
 
                                 <div className="_left_inner_event_bottom">
                                     <p className="_left_iner_event_bottom">17 People Going</p>

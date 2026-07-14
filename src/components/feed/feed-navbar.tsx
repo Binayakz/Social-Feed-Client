@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
-import {useState, useTransition} from "react";
+import {ChangeEvent, useRef, useState, useTransition} from "react";
 
-import type {UserResponse} from "@/lib/types";
+import type {ApiErrorResponse, UserResponse} from "@/lib/types";
+import {Avatar} from "@/components/feed/Avatar";
 
 type FeedNavbarProps = {
     currentUser: UserResponse;
@@ -32,11 +33,79 @@ const notifications = [
     },
 ];
 
+function getInitials(fullName: string): string {
+    return fullName
+        .split(" ")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
+}
+
+async function getErrorMessage(response: Response): Promise<string> {
+    try {
+        const data = (await response.json()) as ApiErrorResponse;
+        return data.detail || "Request failed.";
+    } catch {
+        return "Request failed.";
+    }
+}
+
 export default function FeedNavbar({currentUser}: FeedNavbarProps) {
     const router = useRouter();
     const [isLoggingOut, startTransition] = useTransition();
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [profileImageUrl, setProfileImageUrl] = useState(currentUser.profile_image_url);
+    const [isUploadingProfileImage, setIsUploadingProfileImage] = useState(false);
+    const [profileUploadError, setProfileUploadError] = useState<string | null>(null);
+
+    const initials = getInitials(currentUser.full_name);
+    const isProfileActionBusy = isLoggingOut || isUploadingProfileImage;
+
+    async function handleProfileImageUpload(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setProfileUploadError(null);
+        setIsUploadingProfileImage(true);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch("/api/proxy/users/me/profile-image", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (response.status === 401) {
+                startTransition(() => {
+                    router.replace("/login");
+                    router.refresh();
+                });
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(await getErrorMessage(response));
+            }
+
+            const updatedUser = (await response.json()) as UserResponse;
+            setProfileImageUrl(updatedUser.profile_image_url);
+            router.refresh();
+        } catch (error) {
+            setProfileUploadError(
+                error instanceof Error ? error.message : "Unable to upload profile photo.",
+            );
+        } finally {
+            setIsUploadingProfileImage(false);
+            event.target.value = "";
+        }
+    }
 
     async function handleLogout() {
         await fetch("/api/auth/logout", {method: "POST"});
@@ -200,19 +269,22 @@ export default function FeedNavbar({currentUser}: FeedNavbarProps) {
                             </ul>
 
                             <div className="_header_nav_profile position-relative gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#377DFF] text-sm font-semibold uppercase text-white">
-                                    {/*<Image*/}
-                                    {/*    src="/assets/images/card_ppl1.png"*/}
-                                    {/*    alt={currentUser.full_name}*/}
-                                    {/*    width={20}*/}
-                                    {/*    height={20}*/}
-                                    {/*    className="_nav_profile_img rounded-full"*/}
-                                    {/*/>*/}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="d-none"
+                                    onChange={(event) => void handleProfileImageUpload(event)}
+                                    disabled={isProfileActionBusy}
+                                />
 
-                                        {currentUser.first_name.at(0)}{currentUser.last_name.at(0)}
-                                </div>
 
-                                <div className="_header_nav_dropdown">
+                                <div className="_header_nav_dropdown gap-2" onClick={toggleProfile}>
+                                    <Avatar name={currentUser.full_name}
+                                            imageUrl={profileImageUrl}
+                                            sizeClassName={"h-6.5 w-6.5"}
+                                            textClassName={"sm"}
+                                    />
                                     <p className="_header_nav_para">{currentUser.full_name}</p>
                                     <button
                                         className="_header_nav_dropdown_btn _dropdown_toggle border-0 bg-transparent"
@@ -220,45 +292,43 @@ export default function FeedNavbar({currentUser}: FeedNavbarProps) {
                                         onClick={toggleProfile}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" fill="none" viewBox="0 0 10 6">
-                                            <path fill="#112032"
-                                                  d="M5 5l.354.354L5 5.707l-.354-.353L5 5zm4.354-3.646l-4 4-.708-.708 4-4 .708.708zm-4.708 4l-4-4 .708-.708 4 4-.708.708z"/>
+                                            <path
+                                                fill="#112032"
+                                                d="M5 5l.354.354L5 5.707l-.354-.353L5 5zm4.354-3.646l-4 4-.708-.708 4-4 .708.708zm-4.708 4l-4-4 .708-.708 4 4-.708.708z"
+                                            />
                                         </svg>
                                     </button>
                                 </div>
 
                                 {isProfileOpen ? (
-                                    <div className={`_nav_profile_dropdown _profile_dropdown ${isProfileOpen ? "show" : ""}`}>
+                                    <div className={`_nav_profile_dropdown _profile_dropdown border border-gray-200 dark:border-gray-300 ${isProfileOpen ? "show" : ""}`}>
                                         <div className="_nav_profile_dropdown_info">
-                                            <div className="_nav_profile_dropdown_image ">
-                                                <Image
-                                                    src="/assets/images/profile.png"
-                                                    alt={currentUser.full_name}
-                                                    width={48}
-                                                    height={48}
-                                                    className="_nav_drop_img"
-                                                />
+                                            <div className="_nav_profile_dropdown_image">
+                                                <Avatar name={currentUser.full_name}
+                                                        imageUrl={profileImageUrl}
+                                                        sizeClassName={"h-9 w-9"}
+                                                        textClassName={"lg"}/>
                                             </div>
 
                                             <div className="_nav_profile_dropdown_info_txt">
                                                 <h4 className="_nav_dropdown_title">{currentUser.full_name}</h4>
-                                                <button type="button" className="_nav_drop_profile border-0 bg-transparent">
-                                                    View Profile
-                                                </button>
+                                                <p className="_nav_dropdown_title text-slate-500">{currentUser.email}</p>
                                             </div>
                                         </div>
 
-                                        <hr/>
+                                        <hr className="dark: text-white"/>
 
                                         <ul className="_nav_dropdown_list">
                                             <li className="_nav_dropdown_list_item">
-                                                <button type="button" className="_nav_dropdown_link border-0 bg-transparent w-100 text-start">
-                                                    <div className="_nav_drop_info">Settings</div>
-                                                </button>
-                                            </li>
-
-                                            <li className="_nav_dropdown_list_item">
-                                                <button type="button" className="_nav_dropdown_link border-0 bg-transparent w-100 text-start">
-                                                    <div className="_nav_drop_info">Help & Support</div>
+                                                <button
+                                                    type="button"
+                                                    className="_nav_dropdown_link border-0 bg-transparent w-100 text-start"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    disabled={isProfileActionBusy}
+                                                >
+                                                    <div className="_nav_drop_info">
+                                                        {isUploadingProfileImage ? "Uploading profile photo..." : "Upload Profile Photo"}
+                                                    </div>
                                                 </button>
                                             </li>
 
@@ -267,7 +337,7 @@ export default function FeedNavbar({currentUser}: FeedNavbarProps) {
                                                     type="button"
                                                     className="_nav_dropdown_link border-0 bg-transparent w-100 text-start"
                                                     onClick={() => void handleLogout()}
-                                                    disabled={isLoggingOut}
+                                                    disabled={isProfileActionBusy}
                                                 >
                                                     <div className="_nav_drop_info">
                                                         {isLoggingOut ? "Logging out..." : "Log Out"}
@@ -275,6 +345,10 @@ export default function FeedNavbar({currentUser}: FeedNavbarProps) {
                                                 </button>
                                             </li>
                                         </ul>
+
+                                        {profileUploadError ? (
+                                            <p className="mb-0 mt-3 text-sm text-danger">{profileUploadError}</p>
+                                        ) : null}
                                     </div>
                                 ) : null}
                             </div>

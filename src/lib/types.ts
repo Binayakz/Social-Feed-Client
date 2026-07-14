@@ -58,6 +58,7 @@ export interface PostLikerPreview {
     id: UUID;
     full_name: string;
     initials: string;
+    profile_image_url: string | null;
 }
 
 export interface PostResponse {
@@ -132,6 +133,7 @@ export interface LikeUserResponse {
     first_name: string;
     last_name: string;
     full_name: string;
+    profile_image_url: string | null;
 }
 
 export interface LikeActionResponse {

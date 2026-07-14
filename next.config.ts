@@ -1,7 +1,7 @@
-import type { NextConfig } from "next";
+import type {NextConfig} from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+    /* config options here */
     devIndicators: false,
     images: {
         remotePatterns: [
@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
                 protocol: "https",
                 hostname: "social-feed-assets.s3.ap-south-1.amazonaws.com",
                 pathname: "/post-images/**",
+            },
+            {
+                protocol: "https",
+                hostname: "social-feed-assets.s3.ap-south-1.amazonaws.com",
+                pathname: "/profile-images/**",
             },
         ],
     },

@@ -6,17 +6,9 @@ import Image from "next/image";
 import PostComments from "@/components/feed/post-comments";
 import {FeedLeftSidebar, FeedRightSidebar, FeedStoriesRow} from "@/components/feed/feed-shell-sections";
 import FeedNavbar from "@/components/feed/feed-navbar";
-import type {
-    ApiErrorResponse,
-    LikeActionResponse,
-    PostCreate,
-    PostFeedPage,
-    PostResponse,
-    UploadedImageResponse,
-    UserResponse,
-    Visibility,
-} from "@/lib/types";
+import type {ApiErrorResponse, LikeActionResponse, PostFeedPage, PostResponse, UserResponse, Visibility,} from "@/lib/types";
 import LikerListModal from "@/components/feed/liker-list-modal";
+import {Avatar} from "@/components/feed/Avatar";
 
 type FeedClientProps = {
     currentUser: UserResponse;
@@ -24,7 +16,6 @@ type FeedClientProps = {
 
 type ComposerState = {
     content: string;
-    image_url: string;
     visibility: Visibility;
 };
 
@@ -77,17 +68,17 @@ export default function FeedClient({currentUser}: FeedClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    // const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [composerImageFile, setComposerImageFile] = useState<File | null>(null);
+    const [composerImagePreview, setComposerImagePreview] = useState<string | null>(null);
 
     const [feedError, setFeedError] = useState<string | null>(null);
     const [composerError, setComposerError] = useState<string | null>(null);
 
     const [composer, setComposer] = useState<ComposerState>({
         content: "",
-        image_url: "",
         visibility: "public",
     });
-
     const [likerModal, setLikerModal] = useState<{
         isOpen: boolean;
         title: string;
@@ -100,9 +91,11 @@ export default function FeedClient({currentUser}: FeedClientProps) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [showComposerExtras, setShowComposerExtras] = useState(false);
 
-    const initials = getInitials(currentUser.full_name);
-    const isBusy = isCreating || isRedirecting || isUploadingImage;
+    const [openPostMenuId, setOpenPostMenuId] = useState<string | null>(null);
 
+    const initials = getInitials(currentUser.full_name);
+    // const isBusy = isCreating || isRedirecting || isUploadingImage;
+    const isBusy = isCreating || isRedirecting;
     const handleUnauthorized = useCallback(async () => {
         startTransition(() => {
             router.replace("/login");
@@ -132,6 +125,32 @@ export default function FeedClient({currentUser}: FeedClientProps) {
         setHasMore(data.has_more);
     }, [handleUnauthorized]);
 
+    const [theme, setTheme] = useState<"light" | "dark">("light");
+    const [isThemeReady, setIsThemeReady] = useState(false);
+
+    useEffect(() => {
+        const storedTheme = window.localStorage.getItem("buddy-theme");
+
+        if (storedTheme === "dark" || storedTheme === "light") {
+            setTheme(storedTheme);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            setTheme("dark");
+        }
+
+        setIsThemeReady(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isThemeReady) return;
+        window.localStorage.setItem("buddy-theme", theme);
+    }, [theme, isThemeReady]);
+
+    function toggleTheme() {
+        setTheme((current) => (current === "dark" ? "light" : "dark"));
+    }
+
+    const isDarkTheme = theme === "dark";
+
     useEffect(() => {
         async function run() {
             setFeedError(null);
@@ -148,42 +167,42 @@ export default function FeedClient({currentUser}: FeedClientProps) {
 
         void run();
     }, [loadPosts]);
+    useEffect(() => {
+        return () => {
+            if (composerImagePreview) {
+                URL.revokeObjectURL(composerImagePreview);
+            }
+        };
+    }, [composerImagePreview]);
 
-    async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    function handleImageSelect(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
 
         setComposerError(null);
-        setIsUploadingImage(true);
 
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch("/api/proxy/uploads/post-image", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (response.status === 401) {
-                await handleUnauthorized();
-                return;
-            }
-
-            if (!response.ok) throw new Error(await getErrorMessage(response));
-
-            const uploaded = (await response.json()) as UploadedImageResponse;
-
-            setComposer((current) => ({
-                ...current,
-                image_url: uploaded.url,
-            }));
-        } catch (error) {
-            setComposerError(error instanceof Error ? error.message : "Unable to upload image.");
-        } finally {
-            setIsUploadingImage(false);
+        if (!file.type.startsWith("image/")) {
+            setComposerError("Please choose a valid image file.");
             event.target.value = "";
+            return;
         }
+
+        const previewUrl = URL.createObjectURL(file);
+
+        setComposerImageFile(file);
+        setComposerImagePreview(previewUrl);
+        setShowComposerExtras(true);
+
+        event.target.value = "";
+    }
+
+    function handleRemoveSelectedImage() {
+        if (composerImagePreview) {
+            URL.revokeObjectURL(composerImagePreview);
+        }
+
+        setComposerImageFile(null);
+        setComposerImagePreview(null);
     }
 
     async function handleCreatePost(event: FormEvent<HTMLFormElement>) {
@@ -191,24 +210,30 @@ export default function FeedClient({currentUser}: FeedClientProps) {
         setComposerError(null);
 
         const content = composer.content.trim();
-        if (!content) {
-            setComposerError("Post content is required.");
+
+        if (!content && !composerImageFile) {
+            setComposerError("Write something or choose an image.");
             return;
         }
 
         setIsCreating(true);
 
         try {
-            const payload: PostCreate = {
-                content,
-                image_url: composer.image_url.trim() || null,
-                visibility: composer.visibility,
-            };
+            const formData = new FormData();
 
-            const response = await fetch("/api/proxy/posts", {
+            if (content) {
+                formData.append("content", content);
+            }
+
+            formData.append("visibility", composer.visibility);
+
+            if (composerImageFile) {
+                formData.append("image", composerImageFile);
+            }
+
+            const response = await fetch("/api/proxy/posts/compose", {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(payload),
+                body: formData,
             });
 
             if (response.status === 401) {
@@ -223,9 +248,16 @@ export default function FeedClient({currentUser}: FeedClientProps) {
             setPosts((current) => [createdPost, ...current]);
             setComposer({
                 content: "",
-                image_url: "",
                 visibility: "public",
             });
+
+            if (composerImagePreview) {
+                URL.revokeObjectURL(composerImagePreview);
+            }
+
+            setComposerImageFile(null);
+            setComposerImagePreview(null);
+            setShowComposerExtras(false);
         } catch (error) {
             setComposerError(error instanceof Error ? error.message : "Unable to create post.");
         } finally {
@@ -260,6 +292,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                     id: currentUser.id,
                     full_name: currentUser.full_name,
                     initials,
+                    profile_image_url: currentUser.profile_image_url,
                 };
 
                 const nextPreview = result.liked
@@ -306,8 +339,43 @@ export default function FeedClient({currentUser}: FeedClientProps) {
         );
     }
 
+    function togglePostMenu(postId: string) {
+        setOpenPostMenuId((current) => (current === postId ? null : postId));
+    }
+
     return (
-        <div className="_layout _layout_main_wrapper">
+        <div className={`_layout _layout_main_wrapper ${isDarkTheme ? "_dark_wrapper" : ""}`}>
+            <div className="_layout_mode_swithing_btn">
+                <button
+                    type="button"
+                    className="_layout_swithing_btn_link"
+                    onClick={toggleTheme}
+                    aria-label={isDarkTheme ? "Switch to light mode" : "Switch to dark mode"}
+                    title={isDarkTheme ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                    <div className="_layout_swithing_btn">
+                        <div className="_layout_swithing_btn_round"/>
+                    </div>
+
+                    <div className="_layout_change_btn_ic1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="16" fill="none" viewBox="0 0 11 16">
+                            <path
+                                fill="#fff"
+                                d="M2.727 14.977l.04-.498-.04.498zm-1.72-.49l.489-.11-.489.11zM3.232 1.212L3.514.8l-.282.413zM9.792 8a6.5 6.5 0 00-6.5-6.5v-1a7.5 7.5 0 017.5 7.5h-1zm-6.5 6.5a6.5 6.5 0 006.5-6.5h1a7.5 7.5 0 01-7.5 7.5v-1zm-.525-.02c.173.013.348.02.525.02v1c-.204 0-.405-.008-.605-.024l.08-.997zm-.261-1.83A6.498 6.498 0 005.792 7h1a7.498 7.498 0 01-3.791 6.52l-.495-.87zM5.792 7a6.493 6.493 0 00-2.841-5.374L3.514.8A7.493 7.493 0 016.792 7h-1zm-3.105 8.476c-.528-.042-.985-.077-1.314-.155-.316-.075-.746-.242-.854-.726l.977-.217c-.028-.124-.145-.09.106-.03.237.056.6.086 1.165.131l-.08.997zm.314-1.956c-.622.354-1.045.596-1.31.792a.967.967 0 00-.204.185c-.01.013.027-.038.009-.12l-.977.218a.836.836 0 01.144-.666c.112-.162.27-.3.433-.42.324-.24.814-.519 1.41-.858L3 13.52zM3.292 1.5a.391.391 0 00.374-.285A.382.382 0 003.514.8l-.563.826A.618.618 0 012.702.95a.609.609 0 01.59-.45v1z"
+                            />
+                        </svg>
+                    </div>
+
+                    <div className="_layout_change_btn_ic2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4.389" stroke="#fff" transform="rotate(-90 12 12)"/>
+                            <path stroke="#fff" strokeLinecap="round"
+                                  d="M3.444 12H1M23 12h-2.444M5.95 5.95L4.222 4.22M19.778 19.779L18.05 18.05M12 3.444V1M12 23v-2.445M18.05 5.95l1.728-1.729M4.222 19.779L5.95 18.05"/>
+                        </svg>
+                    </div>
+                </button>
+            </div>
+
             <div className="_main_layout">
                 <FeedNavbar currentUser={currentUser}/>
 
@@ -321,20 +389,19 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                             <div className="col-xl-6 col-lg-6 col-md-12 col-sm-12">
                                 <div className="_layout_middle_wrap">
                                     <div className="_layout_middle_inner">
-                                        <FeedStoriesRow/>
+                                        <FeedStoriesRow currentUser={currentUser}/>
 
                                         <form
                                             onSubmit={handleCreatePost}
                                             className="_feed_inner_text_area _b_radious6 _padd_b24 _padd_t24 _padd_r24 _padd_l24 _mar_b16"
                                         >
-                                            <div className="_feed_inner_text_area_box">
+                                            {/*<div className="_feed_inner_text_area_box">
                                                 <div className="_feed_inner_text_area_box_image">
-                                                    <Image
-                                                        src="/assets/images/txt_img.png"
-                                                        alt={currentUser.full_name}
-                                                        width={48}
-                                                        height={48}
-                                                        className="_txt_img"
+                                                    <Avatar
+                                                        name={currentUser.full_name}
+                                                        imageUrl={currentUser.profile_image_url}
+                                                        sizeClassName={"h-10 w-10"}
+                                                        textClassName={"sm"}
                                                     />
                                                 </div>
 
@@ -351,7 +418,6 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                             }))
                                                         }
                                                         disabled={isBusy}
-                                                        required
                                                         rows={3}
                                                     />
                                                     <label className="_feed_textarea_label flex" htmlFor="feed-composer">
@@ -370,6 +436,75 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                         </svg>
                                                     </label>
                                                 </div>
+                                            </div>*/}
+                                            <div className="_feed_inner_text_area_box d-flex align-items-start gap-3">
+                                                <div className="_feed_inner_text_area_box_image shrink-0">
+                                                    <Avatar
+                                                        name={currentUser.full_name}
+                                                        imageUrl={currentUser.profile_image_url}
+                                                        sizeClassName="h-10 w-10"
+                                                        textClassName="sm"
+                                                    />
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="d-flex align-items-start justify-content-between gap-3">
+                                                        <div className="form-floating _feed_inner_text_area_box_form flex-1 min-w-0">
+                                                            <textarea
+                                                                id="feed-composer"
+                                                                className="form-control _textarea"
+                                                                placeholder="Write something ..."
+                                                                value={composer.content}
+                                                                onChange={(event) =>
+                                                                    setComposer((current) => ({
+                                                                        ...current,
+                                                                        content: event.target.value,
+                                                                    }))
+                                                                }
+                                                                disabled={isBusy}
+                                                                rows={3}
+                                                            />
+                                                            {
+                                                                composer.content.length == 0 && (
+                                                                    <label className="_feed_textarea_label flex items-center" htmlFor="feed-composer">
+                                                                        <span>Write something ...</span>
+                                                                        <svg
+                                                                            style={{marginLeft: "6px"}}
+                                                                            className="inline-block shrink-0"
+                                                                            xmlns="http://www.w3.org/2000/svg"
+                                                                            width="23"
+                                                                            height="24"
+                                                                            fill="none"
+                                                                            viewBox="0 0 23 24"
+                                                                        >
+                                                                            <path
+                                                                                fill="#666"
+                                                                                d="M19.504 19.209c.332 0 .601.289.601.646 0 .326-.226.596-.52.64l-.081.005h-6.276c-.332 0-.602-.289-.602-.645 0-.327.227-.597.52-.64l.082-.006h6.276zM13.4 4.417c1.139-1.223 2.986-1.223 4.125 0l1.182 1.268c1.14 1.223 1.14 3.205 0 4.427L9.82 19.649a2.619 2.619 0 01-1.916.85h-3.64c-.337 0-.61-.298-.6-.66l.09-3.941a3.019 3.019 0 01.794-1.982l8.852-9.5zm-.688 2.562l-7.313 7.85a1.68 1.68 0 00-.441 1.101l-.077 3.278h3.023c.356 0 .698-.133.968-.376l.098-.096 7.35-7.887-3.608-3.87zm3.962-1.65a1.633 1.633 0 00-2.423 0l-.688.737 3.606 3.87.688-.737c.631-.678.666-1.755.105-2.477l-.105-.124-1.183-1.268z"
+                                                                            />
+                                                                        </svg>
+                                                                    </label>
+                                                                )
+                                                            }
+                                                        </div>
+
+                                                        <div className="shrink-0">
+                                                            <select
+                                                                className="w-fit text-slate-500 border rounded"
+                                                                value={composer.visibility}
+                                                                onChange={(event) =>
+                                                                    setComposer((current) => ({
+                                                                        ...current,
+                                                                        visibility: event.target.value as Visibility,
+                                                                    }))
+                                                                }
+                                                                disabled={isBusy}
+                                                            >
+                                                                <option value="public">Public</option>
+                                                                <option value="private">Private</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <input
@@ -377,44 +512,50 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                 type="file"
                                                 accept="image/*"
                                                 className="d-none"
-                                                onChange={(event) => void handleImageUpload(event)}
+                                                onChange={handleImageSelect}
                                                 disabled={isBusy}
                                             />
 
-                                            {showComposerExtras || composer.image_url ? (
-                                                <div className="row _mar_t20">
-                                                    <div className="col-xl-8 col-lg-8 col-md-12 col-sm-12">
-                                                        <input
-                                                            type="url"
-                                                            className="form-control _social_login_input"
-                                                            placeholder="Optional image URL"
-                                                            value={composer.image_url}
-                                                            onChange={(event) =>
-                                                                setComposer((current) => ({
-                                                                    ...current,
-                                                                    image_url: event.target.value,
-                                                                }))
-                                                            }
-                                                            disabled={isBusy}
-                                                        />
-                                                    </div>
+                                            {showComposerExtras || composerImagePreview ? (
+                                                <div className="_mar_t20">
+                                                    {composerImagePreview ? (
+                                                        <div className="mb-3 overflow-hidden rounded-[12px] border border-slate-200 bg-slate-50 p-3">
+                                                            <div className="relative overflow-hidden rounded-[10px]">
+                                                                <Image
+                                                                    src={composerImagePreview}
+                                                                    alt="Selected image preview"
+                                                                    width={900}
+                                                                    height={560}
+                                                                    unoptimized
+                                                                    className="h-auto w-full object-cover"
+                                                                />
 
-                                                    <div className="col-xl-4 col-lg-4 col-md-12 col-sm-12 mt-3 mt-lg-0">
-                                                        <select
-                                                            className="form-control _social_login_input"
-                                                            value={composer.visibility}
-                                                            onChange={(event) =>
-                                                                setComposer((current) => ({
-                                                                    ...current,
-                                                                    visibility: event.target.value as Visibility,
-                                                                }))
-                                                            }
-                                                            disabled={isBusy}
-                                                        >
-                                                            <option value="public">Public</option>
-                                                            <option value="private">Private</option>
-                                                        </select>
-                                                    </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleRemoveSelectedImage}
+                                                                    disabled={isBusy}
+                                                                    aria-label="Remove selected image"
+                                                                    style={{borderRadius: "9999px"}}
+                                                                    className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-sm transition hover:bg-white"
+                                                                >
+                                                                    <svg
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        width="16"
+                                                                        height="16"
+                                                                        fill="none"
+                                                                        viewBox="0 0 16 16"
+                                                                    >
+                                                                        <path
+                                                                            d="M4 4l8 8M12 4l-8 8"
+                                                                            stroke="currentColor"
+                                                                            strokeWidth="1.8"
+                                                                            strokeLinecap="round"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             ) : null}
 
@@ -434,7 +575,8 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                       d="M13.916 0c3.109 0 5.18 2.429 5.18 5.914v8.17c0 3.486-2.072 5.916-5.18 5.916H5.999C2.89 20 .827 17.572.827 14.085v-8.17C.827 2.43 2.897 0 6 0h7.917zm0 1.504H5.999c-2.321 0-3.799 1.735-3.799 4.41v8.17c0 2.68 1.472 4.412 3.799 4.412h7.917c2.328 0 3.807-1.734 3.807-4.411v-8.17c0-2.678-1.478-4.411-3.807-4.411zm.65 8.68l.12.125 1.9 2.147a.803.803 0 01-.016 1.063.642.642 0 01-.894.058l-.076-.074-1.9-2.148a.806.806 0 00-1.205-.028l-.074.087-2.04 2.717c-.722.963-2.02 1.066-2.86.26l-.111-.116-.814-.91a.562.562 0 00-.793-.07l-.075.073-1.4 1.617a.645.645 0 01-.97.029.805.805 0 01-.09-.977l.064-.086 1.4-1.617c.736-.852 1.95-.897 2.734-.137l.114.12.81.905a.587.587 0 00.861.033l.07-.078 2.04-2.718c.81-1.08 2.27-1.19 3.205-.275zM6.831 4.64c1.265 0 2.292 1.125 2.292 2.51 0 1.386-1.027 2.511-2.292 2.511S4.54 8.537 4.54 7.152c0-1.386 1.026-2.51 2.291-2.51zm0 1.504c-.507 0-.918.451-.918 1.007 0 .555.411 1.006.918 1.006.507 0 .919-.451.919-1.006 0-.556-.412-1.007-.919-1.007z"></path>
                                                             </svg>
                                                         </span>
-                                                            {isUploadingImage ? "Uploading..." : composer.image_url ? "Photo Added" : "Photo"}
+                                                            {/*{isUploadingImage ? "Uploading..." : composer.image_url ? "Photo Added" : "Photo"}*/}
+                                                            {composerImageFile ? "Photo Added" : "Photo"}
                                                         </button>
                                                     </div>
 
@@ -549,10 +691,20 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                         <div className="_feed_inner_timeline_post_top">
                                                             <div className="_feed_inner_timeline_post_box">
                                                                 <div className="_feed_inner_timeline_post_box_image">
-                                                                    <div
-                                                                        className="flex h-11 w-11 items-center justify-center rounded-full bg-[#377DFF] text-sm font-semibold uppercase text-white">
-                                                                        {authorInitials}
-                                                                    </div>
+                                                                    {
+                                                                        post.author.profile_image_url ?
+                                                                            <Avatar
+                                                                                name={authorInitials}
+                                                                                imageUrl={post.author.profile_image_url}
+                                                                                sizeClassName="h-11 w-11"
+                                                                                textClassName="sm"
+                                                                            />
+                                                                            :
+                                                                            <div
+                                                                                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#377DFF] text-sm font-semibold uppercase text-white">
+                                                                                {authorInitials}
+                                                                            </div>
+                                                                    }
                                                                 </div>
 
                                                                 <div className="_feed_inner_timeline_post_box_txt">
@@ -573,23 +725,135 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                             </div>
 
                                                             <div className="_feed_inner_timeline_post_box_dropdown">
-                                                                <button
-                                                                    type="button"
-                                                                    className="_feed_timeline_post_dropdown_link"
-                                                                    aria-label="Post options"
-                                                                >
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        width="4"
-                                                                        height="17"
-                                                                        fill="none"
-                                                                        viewBox="0 0 4 17"
+                                                                <div className="_feed_timeline_post_dropdown">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="_feed_timeline_post_dropdown_link"
+                                                                        aria-label="Post options"
+                                                                        onClick={() => togglePostMenu(post.id)}
                                                                     >
-                                                                        <circle cx="2" cy="2" r="2" fill="#C4C4C4"/>
-                                                                        <circle cx="2" cy="8" r="2" fill="#C4C4C4"/>
-                                                                        <circle cx="2" cy="15" r="2" fill="#C4C4C4"/>
-                                                                    </svg>
-                                                                </button>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="4" height="17" fill="none"
+                                                                             viewBox="0 0 4 17">
+                                                                            <circle cx="2" cy="2" r="2" fill="#C4C4C4"/>
+                                                                            <circle cx="2" cy="8" r="2" fill="#C4C4C4"/>
+                                                                            <circle cx="2" cy="15" r="2" fill="#C4C4C4"/>
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+
+                                                                <div
+                                                                    className={`_feed_timeline_dropdown border border-gray-200 dark:border-gray-300 ${
+                                                                        openPostMenuId === post.id ? "show" : ""
+                                                                    }`}
+                                                                >
+                                                                    <ul className="_feed_timeline_dropdown_list">
+                                                                        <li className="_feed_timeline_dropdown_item">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
+                                                                            >
+                                                                                <span>
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18">
+                                                                                    <path
+                                                                                        stroke="#1890FF"
+                                                                                        strokeLinecap="round"
+                                                                                        strokeLinejoin="round"
+                                                                                        strokeWidth="1.2"
+                                                                                        d="M14.25 15.75L9 12l-5.25 3.75v-12a1.5 1.5 0 011.5-1.5h7.5a1.5 1.5 0 011.5 1.5v12z"
+                                                                                    />
+                                                                                </svg>
+                                                                                </span>
+                                                                                <div>Save Post</div>
+                                                                            </button>
+                                                                        </li>
+
+                                                                        <li className="_feed_timeline_dropdown_item">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
+                                                                            >
+                    <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="22" fill="none" viewBox="0 0 20 22">
+                            <path
+                                fill="#377DFF"
+                                fillRule="evenodd"
+                                d="M7.547 19.55c.533.59 1.218.915 1.93.915.714 0 1.403-.324 1.938-.916a.777.777 0 011.09-.056c.318.284.344.77.058 1.084-.832.917-1.927 1.423-3.086 1.423h-.002c-1.155-.001-2.248-.506-3.077-1.424a.762.762 0 01.057-1.083.774.774 0 011.092.057zM9.527 0c4.58 0 7.657 3.543 7.657 6.85 0 1.702.436 2.424.899 3.19.457.754.976 1.612.976 3.233-.36 4.14-4.713 4.478-9.531 4.478-4.818 0-9.172-.337-9.528-4.413-.003-1.686.515-2.544.973-3.299l.161-.27c.398-.679.737-1.417.737-2.918C1.871 3.543 4.948 0 9.528 0zm0 1.535c-3.6 0-6.11 2.802-6.11 5.316 0 2.127-.595 3.11-1.12 3.978-.422.697-.755 1.247-.755 2.444.173 1.93 1.455 2.944 7.986 2.944 6.494 0 7.817-1.06 7.988-3.01-.003-1.13-.336-1.681-.757-2.378-.526-.868-1.12-1.851-1.12-3.978 0-2.514-2.51-5.316-6.111-5.316z"
+                                clipRule="evenodd"
+                            />
+                        </svg>
+                    </span>
+                                                                                <div>Turn On Notification</div>
+                                                                            </button>
+                                                                        </li>
+
+                                                                        <li className="_feed_timeline_dropdown_item">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
+                                                                            >
+                    <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18">
+                            <path
+                                stroke="#1890FF"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.2"
+                                d="M14.25 2.25H3.75a1.5 1.5 0 00-1.5 1.5v10.5a1.5 1.5 0 001.5 1.5h10.5a1.5 1.5 0 001.5-1.5V3.75a1.5 1.5 0 00-1.5-1.5zM6.75 6.75l4.5 4.5M11.25 6.75l-4.5 4.5"
+                            />
+                        </svg>
+                    </span>
+                                                                                <div>Hide</div>
+                                                                            </button>
+                                                                        </li>
+
+                                                                        <li className="_feed_timeline_dropdown_item">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
+                                                                            >
+                    <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18">
+                            <path
+                                stroke="#1890FF"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.2"
+                                d="M8.25 3H3a1.5 1.5 0 00-1.5 1.5V15A1.5 1.5 0 003 16.5h10.5A1.5 1.5 0 0015 15V9.75"
+                            />
+                            <path
+                                stroke="#1890FF"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.2"
+                                d="M13.875 1.875a1.591 1.591 0 112.25 2.25L9 11.25 6 12l.75-3 7.125-7.125z"
+                            />
+                        </svg>
+                    </span>
+                                                                               <div>Edit Post</div>
+                                                                            </button>
+                                                                        </li>
+
+                                                                        <li className="_feed_timeline_dropdown_item">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
+                                                                            >
+                    <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18">
+                            <path
+                                stroke="#1890FF"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="1.2"
+                                d="M2.25 4.5h13.5M6 4.5V3a1.5 1.5 0 011.5-1.5h3A1.5 1.5 0 0112 3v1.5m2.25 0V15a1.5 1.5 0 01-1.5 1.5h-7.5a1.5 1.5 0 01-1.5-1.5V4.5h10.5zM7.5 8.25v4.5M10.5 8.25v4.5"
+                            />
+                        </svg>
+                    </span>
+                                                                                <div>Delete Post</div>
+                                                                            </button>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
                                                             </div>
                                                         </div>
 
@@ -605,6 +869,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                     className="_time_img h-auto w-full"
                                                                     width={900}
                                                                     height={560}
+                                                                    loading="eager"
                                                                 />
                                                             </div>
                                                         ) : null}
@@ -622,6 +887,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                 })
                                                             }
                                                         >
+
                                                             {post.like_count > 0 ? (
                                                                 <>
                                                                     {visibleLikers.map((user, index) => (
@@ -629,11 +895,14 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                             key={user.id}
                                                                             className={`${
                                                                                 index === 0 ? "_react_img1" : "_react_img"
-                                                                            } flex h-8 w-8 items-center justify-center rounded-full border border-white text-[10px] font-semibold uppercase text-white`}
-                                                                            style={{background: "#377DFF"}}
-                                                                            title={user.full_name}
+                                                                            } inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white bg-white`}
                                                                         >
-                                                                            {user.initials}
+                                                                            <Avatar
+                                                                                name={user.full_name}
+                                                                                imageUrl={user.profile_image_url}
+                                                                                sizeClassName="h-full w-full"
+                                                                                textClassName="text-[10px]"
+                                                                            />
                                                                         </div>
                                                                     ))}
 
@@ -651,6 +920,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                     0
                                                                 </p>
                                                             )}
+
                                                         </button>
 
                                                         <div className="_feed_inner_timeline_total_reacts_txt">
@@ -667,7 +937,6 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                             </p>
 
                                                             <p className="_feed_inner_timeline_total_reacts_para2">
-                                                                {/*<span>{visibilityLabel}</span> Share*/}
                                                                 <span>0</span> Share
                                                             </p>
                                                         </div>
@@ -730,17 +999,20 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                         </button>
                                                     </div>
 
-                                                    {isCommentsOpen ? (
-                                                        <div className="_feed_inner_timeline_cooment_area">
-                                                            <PostComments
-                                                                postId={post.id}
-                                                                currentUser={currentUser}
-                                                                onCommentCreated={() => incrementCommentCount(post.id)}
-                                                            />
-                                                        </div>
-                                                    ) : null}
+                                                    {
+                                                        isCommentsOpen ? (
+                                                            <div className="_feed_inner_timeline_cooment_area">
+                                                                <PostComments
+                                                                    postId={post.id}
+                                                                    currentUser={currentUser}
+                                                                    onCommentCreated={() => incrementCommentCount(post.id)}
+                                                                />
+                                                            </div>
+                                                        ) : null
+                                                    }
                                                 </article>
-                                            );
+                                            )
+                                                ;
                                         })}
 
                                         {hasMore ? (

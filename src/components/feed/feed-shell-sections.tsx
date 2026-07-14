@@ -1,6 +1,4 @@
 import Image from "next/image";
-import type {UserResponse} from "@/lib/types";
-import {Avatar} from "@/components/feed/Avatar";
 
 const stories = [
     {name: "Your Story", image: "/assets/images/card_ppl1.png", own: true},
@@ -84,16 +82,12 @@ const exploreItems = [
     {label: "Save post"},
 ];
 
-type FeedClientProps = {
-    currentUser: UserResponse;
-};
-
-export function FeedStoriesRow({currentUser}: FeedClientProps) {
+export function FeedStoriesRow() {
     return (
         <>
             <div className="_feed_inner_ppl_card _mar_b16">
                 <div className="row">
-                    {stories.map((story, index) => (
+                    {stories.map((story) => (
                         <div key={story.name} className="col-xl-3 col-lg-3 col-md-4 col-sm-4 col">
                             {story.own ? (
                                 <div className="_feed_inner_profile_story _b_radious6">

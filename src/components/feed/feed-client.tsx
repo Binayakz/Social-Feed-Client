@@ -389,7 +389,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                             <div className="col-xl-6 col-lg-6 col-md-12 col-sm-12">
                                 <div className="_layout_middle_wrap">
                                     <div className="_layout_middle_inner">
-                                        <FeedStoriesRow currentUser={currentUser}/>
+                                        <FeedStoriesRow/>
 
                                         <form
                                             onSubmit={handleCreatePost}
@@ -753,7 +753,8 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                                                                                 className="_feed_timeline_dropdown_link flex gap-2 items-center border-0 bg-transparent text-start w-100"
                                                                             >
                                                                                 <span>
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18">
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                                                                         fill="none" viewBox="0 0 18 18">
                                                                                     <path
                                                                                         stroke="#1890FF"
                                                                                         strokeLinecap="round"
@@ -829,7 +830,7 @@ export default function FeedClient({currentUser}: FeedClientProps) {
                             />
                         </svg>
                     </span>
-                                                                               <div>Edit Post</div>
+                                                                                <div>Edit Post</div>
                                                                             </button>
                                                                         </li>
 

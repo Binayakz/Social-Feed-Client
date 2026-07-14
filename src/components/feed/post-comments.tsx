@@ -93,14 +93,6 @@ function ComposerAvatar({name}: { name: string }) {
     );
 }
 
-function CommentAvatar({name}: { name: string }) {
-    return (
-        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#377DFF] text-xs font-semibold uppercase text-white">
-            {getInitials(name)}
-        </div>
-    );
-}
-
 export default function PostComments({
                                          postId,
                                          currentUser,

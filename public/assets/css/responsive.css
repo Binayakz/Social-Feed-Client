@@ -224,7 +224,7 @@
     ._chat_middle_box_time_txt {
         font-size: 10px;
     }
-    ._chat_middle_day_txt { 
+    ._chat_middle_day_txt {
         font-size: 12px;
     }
     ._chat_left_top {
@@ -633,7 +633,7 @@
         right: 226px;
         width: 400px;
     }
-} 
+}
 @media only screen and (min-width:1200px) and (max-width: 1499px){
     ._shape_three {
         right: 0;
@@ -645,7 +645,7 @@
     ._shape_two {
         width: 450px;
     }
-} 
+}
 @media(max-width:1199px) {
     ._notification_dropdown {
         left: -177px;
@@ -772,7 +772,7 @@
     ._chat_textarea {
         width: 100% !important;
     }
-} 
+}
 @media only screen and (min-width:992px) and (max-width: 1199px) {
     ._custom_container {
         max-width: 1160px;
@@ -780,7 +780,7 @@
     /*--- Feed Css -----*/
     ._title5 {
         font-size: 13px !important;
-    }    
+    }
     ._left_inner_area_suggest_info_box {
         align-items: flex-start;
         margin:0 0 10px 0;
@@ -968,4 +968,3 @@
         right: -50px;
     }
 }
-  

@@ -27,3 +27,8 @@ select:disabled,
 textarea:disabled {
     cursor: not-allowed;
 }
+
+._feed_textarea_label svg {
+    display: inline-block;
+    vertical-align: middle;
+}

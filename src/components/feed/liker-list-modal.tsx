@@ -93,7 +93,7 @@ export default function LikerListModal({
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 py-6">
-            <div className="w-full max-w-md rounded-4 bg-white p-4 shadow-2xl">
+            <div className="w-full max-w-md rounded-4 bg-white p-4 shadow-2xl rounded-lg">
                 <div className="mb-3 d-flex items-start justify-content-between gap-3">
                     <div>
                         <h4 className="mb-1 text-lg font-semibold text-slate-900">{title}</h4>
@@ -129,7 +129,7 @@ export default function LikerListModal({
                             {users.map((user) => (
                                 <div
                                     key={user.id}
-                                    className="d-flex items-center gap-3 rounded-4 border border-slate-200 bg-slate-50 p-3"
+                                    className="my-1 d-flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
                                 >
                                     <div
                                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#377DFF] text-xs font-semibold text-white">

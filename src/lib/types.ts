@@ -34,6 +34,7 @@ export interface UserResponse {
     last_name: string;
     full_name: string;
     email: string;
+    profile_image_url: string | null;
     is_active: boolean;
     created_at: ISODateString;
     updated_at: ISODateString;
@@ -44,12 +45,19 @@ export interface PostAuthorResponse {
     first_name: string;
     last_name: string;
     full_name: string;
+    profile_image_url: string | null;
 }
 
 export interface PostCreate {
     content: string;
     image_url?: string | null;
     visibility?: Visibility;
+}
+
+export interface PostLikerPreview {
+    id: UUID;
+    full_name: string;
+    initials: string;
 }
 
 export interface PostResponse {
@@ -62,6 +70,7 @@ export interface PostResponse {
     like_count: number;
     comment_count: number;
     liked_by_me: boolean;
+    likers_preview: PostLikerPreview[];
     created_at: ISODateString;
     updated_at: ISODateString;
 }
@@ -77,6 +86,7 @@ export interface CommentAuthorResponse {
     first_name: string;
     last_name: string;
     full_name: string;
+    profile_image_url: string | null;
 }
 
 export interface CommentCreate {

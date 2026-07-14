@@ -128,8 +128,8 @@ export default function AuthShell({
                                 >
                                     <img src="/assets/images/google.svg" alt="" className="_google_img"/>
                                     <span>
-                    {isLogin ? "Or sign-in with google" : "Register with google"}
-                  </span>
+                                        {isLogin ? "Or sign-in with google" : "Register with google"}
+                                  </span>
                                 </button>
 
                                 <div

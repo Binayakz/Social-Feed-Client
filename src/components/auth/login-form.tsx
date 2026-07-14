@@ -162,7 +162,7 @@ export default function LoginForm() {
                         <div className="_social_login_form_btn _mar_t40 _mar_b60">
                             <button
                                 type="submit"
-                                className="_social_login_form_btn_link _btn1"
+                                className="_social_login_form_btn_link _btn1 border-2 border-white flex justify-center w-full whitespace-nowrap"
                                 disabled={isBusy}
                             >
                                 {isBusy ? "Logging in..." : "Login now"}

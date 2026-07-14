@@ -287,7 +287,7 @@ export default function RegisterForm() {
                         <div className="_social_registration_form_btn _mar_t40 _mar_b60">
                             <button
                                 type="submit"
-                                className="_social_registration_form_btn_link _btn1"
+                                className="_social_registration_form_btn_link _btn1 border-2 border-white flex justify-center w-full whitespace-nowrap"
                                 disabled={isBusy}
                             >
                                 {isBusy ? "Creating account..." : "Register now"}
